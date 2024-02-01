@@ -53,12 +53,11 @@ tasks:
       - docker compose up app
 
   up:
-    desc: Start all the services for marketeer
+    desc: Start all the services for exampleapp
     cmds:
       - defer:
           task: docker:stop
       - docker compose up
-
 
   db:setup:
     internal: true
