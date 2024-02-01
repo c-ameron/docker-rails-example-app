@@ -2,13 +2,13 @@
 
 target "build" {
     contexts = {
-        base-build-ruby = "docker-image://cgza/base-build-ruby:3.2-postgres"
+        base-ruby-build = "docker-image://cgza/base-ruby-build:3.2-postgres"
     }
 }
 
 target "runtime" {
     contexts = {
-        base-runtime-ruby = "docker-image://cgza/base-runtime-ruby:3.2-postgres"
+        base-ruby-runtime = "docker-image://cgza/base-ruby-runtime:3.2-postgres"
     }
 }
 

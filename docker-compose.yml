@@ -1,7 +1,7 @@
 version: "3"
 services:
   app:
-    image: ruby:3.2.3 #exampleapp:dev
+    image: exampleapp:dev
     environment:
       BUNDLE_GITHUB__COM: ${BUNDLE_GITHUB__COM}
     networks:

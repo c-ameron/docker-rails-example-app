@@ -1,0 +1,145 @@
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+  default:
+    desc: List all available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  bundle:
+    desc: Installs gems
+    cmds:
+      - task: docker:build-dev
+      - docker compose run --no-deps app bundle install -j8
+      # an issue with GHA that mounts the docker volume as root. To get caching working, just chown after install
+      # https://batect.dev/docs/concepts/run-as-current-user-mode/ has a good explanation
+      - '{{if eq .CI "true"}}sudo chown -R "$(id -u):$(id -g)" .docker-compose/bundle/{{end}}'
+
+  setup:
+    desc: Setup the project
+    cmds:
+      - defer:
+          task: docker:stop
+      - task: docker:create-network
+      - task: bundle
+      - task: db:setup
+      - task: test
+
+  setup:ci:
+    desc: Setup the project for CI/test
+    cmds:
+      - task: docker:build
+      - task: docker:create-network
+      - task: bundle
+      # allow skipping setup of database in CI
+      - task: '{{if ne .SETUP_DB "false"}}db:setup:test{{end}}'
+      - echo "exampleapp is setup for CI ✅"
+
+  shell:
+    desc: Runs a shell inside the app container
+    cmds:
+      - defer:
+          task: docker:stop
+      - docker compose run --rm app ash
+
+  server:
+    desc: Runs a local webserver
+    cmds:
+      - defer:
+          task: docker:stop
+      - docker compose up app
+
+  up:
+    desc: Start all the services for marketeer
+    cmds:
+      - defer:
+          task: docker:stop
+      - docker compose up
+
+
+  db:setup:
+    internal: true
+    desc: The command will create the database and run the migrations for the development environment
+    cmd: docker compose run --rm app bundle exec rails db:create
+
+  test:
+    desc: Run tests
+    cmds:
+      - defer:
+          task: docker:stop
+      - docker compose run -e "RAILS_ENV=test" --service-ports --use-aliases --rm app bundle exec rails test
+
+  console:
+    desc: Run rails console [development]
+    cmds:
+      - defer:
+          task: docker:stop
+      - docker-compose run --service-ports --use-aliases --rm app rails console
+
+  run:
+    desc: Run one off shell command in app container
+    cmds:
+      - defer:
+          task: docker:stop
+      - docker-compose run --service-ports --use-aliases --rm app {{.CLI_ARGS}}
+
+  lint:
+    desc: Run linters
+    cmds:
+      - docker compose run --service-ports --use-aliases --no-deps app bundle exec rubocop --format progress {{.CLI_ARGS}}
+
+  docker:build-dev:
+    run: once
+    desc: Build the app image
+    env:
+      GITHUB_RO_TOKEN: '{{.BUNDLE_GITHUB__COM}}'
+    cmds:
+      - |
+        docker buildx bake "https://github.com/c-ameron/docker-bake-rails-example.git" \
+        --file cwd://docker-bake.override.hcl --file docker-bake/docker-bake.hcl \
+        --pull --progress=plain \
+        --load --print dev {{.CLI_ARGS}}
+      - |
+        docker buildx bake "https://github.com/c-ameron/docker-bake-rails-example.git" \
+        --file cwd://docker-bake.override.hcl --file docker-bake/docker-bake.hcl \
+        --pull --progress=plain \
+        --load dev {{.CLI_ARGS}}
+
+  docker:build-app:
+    run: once
+    desc: Build the app image
+    env:
+      GITHUB_RO_TOKEN: '{{.BUNDLE_GITHUB__COM}}'
+    cmds:
+      - |
+        docker buildx bake "https://github.com/c-ameron/docker-bake-rails-example.git" \
+        --file cwd://docker-bake.override.hcl --file docker-bake/docker-bake.hcl \
+        --pull --progress=plain \
+        --load --print app {{.CLI_ARGS}}
+      - |
+        docker buildx bake "https://github.com/c-ameron/docker-bake-rails-example.git" \
+        --file cwd://docker-bake.override.hcl --file docker-bake/docker-bake.hcl \
+        --pull --progress=plain \
+        --load app {{.CLI_ARGS}}
+
+  docker:stop:
+    run: once
+    desc: Stop all containers
+    cmds:
+      - docker compose stop -t 1
+
+  docker:clean:
+    desc: Purges local Docker setup
+    cmds:
+      - docker compose down -v --remove-orphans --rmi local
+      - rm -rf .docker-compose/bundle/ # have to remove the actual folder
+
+  docker:create-network:
+    desc: Create a docker network to be shared across company services
+    cmds:
+      - docker network create company
+    status:
+      - docker network inspect company
