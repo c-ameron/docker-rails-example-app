@@ -35,7 +35,7 @@ tasks:
       - task: docker:create-network
       - task: bundle
       # allow skipping setup of database in CI
-      - task: '{{if ne .SETUP_DB "false"}}db:setup:test{{end}}'
+      - task: '{{if ne .SETUP_DB "false"}}db:setup{{end}}'
       - echo "exampleapp is setup for CI ✅"
 
   shell:
@@ -107,11 +107,24 @@ tasks:
         --pull --progress=plain \
         --load dev {{.CLI_ARGS}}
 
+  docker:build-dev-print:
+    run: once
+    desc: Build the app image
+    env:
+      GITHUB_RO_TOKEN: '{{.BUNDLE_GITHUB__COM}}'
+    cmds:
+      - |
+        docker buildx bake "https://github.com/c-ameron/docker-bake-rails-example.git" \
+        --file cwd://docker-bake.override.hcl --file docker-bake/docker-bake.hcl \
+        --pull --progress=plain \
+        --load --print dev {{.CLI_ARGS}}
+
   docker:build-app:
     run: once
     desc: Build the app image
     env:
       GITHUB_RO_TOKEN: '{{.BUNDLE_GITHUB__COM}}'
+      APP_IMAGE_TAG: "exampleapp:app"
     cmds:
       - |
         docker buildx bake "https://github.com/c-ameron/docker-bake-rails-example.git" \
@@ -123,6 +136,19 @@ tasks:
         --file cwd://docker-bake.override.hcl --file docker-bake/docker-bake.hcl \
         --pull --progress=plain \
         --load app {{.CLI_ARGS}}
+
+  docker:build-app-print:
+    run: once
+    desc: Build the app image
+    env:
+      GITHUB_RO_TOKEN: '{{.BUNDLE_GITHUB__COM}}'
+      APP_IMAGE_TAG: "exampleapp:app"
+    cmds:
+      - |
+        docker buildx bake "https://github.com/c-ameron/docker-bake-rails-example.git" \
+        --file cwd://docker-bake.override.hcl --file docker-bake/docker-bake.hcl \
+        --pull --progress=plain \
+        --load --print app {{.CLI_ARGS}}
 
   docker:stop:
     run: once
