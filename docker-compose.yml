@@ -1,0 +1,43 @@
+version: "3"
+services:
+  app:
+    image: ruby:3.2.3 #exampleapp:dev
+    environment:
+      BUNDLE_GITHUB__COM: ${BUNDLE_GITHUB__COM}
+    networks:
+      default:
+      company:
+        aliases:
+          - "exampleapp"
+    volumes:
+      - ./:/app
+      - .docker-compose/bundle:/usr/local/bundle
+    ports:
+      - ${PORT}:3000
+    command: sh /app/bin/dispatch.sh
+    depends_on:
+        db:
+          condition: service_healthy
+
+  db:
+    image: postgres:13.3-alpine
+    environment:
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+
+
+networks:
+  company:
+    external: true
+    name: company
+
+volumes:
+  database:

@@ -1,0 +1,11 @@
+.git
+.github/
+.env*
+docker-compose.yml
+Procfile
+.docker-compose/
+.task/
+log/
+tmp/
+/config/master.key
+/storage/
